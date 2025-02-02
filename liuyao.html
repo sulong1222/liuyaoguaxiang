@@ -2,58 +2,99 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>六爻在线解卦</title>
-    <!-- 样式部分保持此前传统风格设计 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>六爻智能解卦系统</title>
     <style>
-        /* 保持之前的传统样式 */
-        /* 新增解卦专用样式 */
-        .interpretation {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(255,255,255,0.1);
+        :root {
+            --primary-color: #8b4513;
+            --secondary-color: #d4af37;
+            --bg-color: #f0e6d3;
+        }
+        body {
+            font-family: '楷体', cursive;
+            background: var(--bg-color);
+            color: var(--primary-color);
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(255,255,255,0.9);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        button {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        .hexagram-box {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: rgba(139,69,19,0.1);
             border-radius: 8px;
         }
-        .interpretation h3 {
-            color: #d4af37;
-            border-bottom: 1px solid #5a0000;
-            padding-bottom: 5px;
+        .yao-line {
+            font-size: 1.8rem;
+            line-height: 1.5;
+            margin: 0.5rem 0;
         }
-        .tab {
-            cursor: pointer;
-            padding: 10px 20px;
-            background: #5a0000;
-            display: inline-block;
-            margin: 5px;
-            border-radius: 5px;
-        }
-        .tab.active {
-            background: #8b0000;
-        }
-        .advice-list {
-            list-style: none;
-            padding-left: 20px;
-        }
-        .advice-list li {
-            margin: 10px 0;
+        .changing-yao {
+            color: #b22222;
             position: relative;
         }
-        .advice-list li::before {
-            content: "•";
-            color: #8b0000;
+        .changing-yao::after {
+            content: "✦";
             position: absolute;
-            left: -15px;
+            right: -1.2rem;
+            color: #ffd700;
+        }
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .tab {
+            padding: 0.8rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            background: var(--secondary-color);
+            color: white;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            background: var(--primary-color);
+        }
+        .interpretation {
+            line-height: 1.8;
+        }
+        .element-tag {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            margin-left: 1rem;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <button onclick="generate()">🎴 诚心摇卦</button>
+        <h1>🀄 六爻智能解卦系统</h1>
+        <button onclick="generateHexagram()">🙏 诚心摇卦</button>
         <div id="result"></div>
     </div>
 
-    <script>
-        // 完整64卦数据（关键卦示例，完整版需补充）
+<script>
+// 完整六十四卦数据库
 const hexagramDict = {
   // 上经三十卦
   '111111': { name: '乾为天', desc: '元亨利贞。', yao: [
@@ -138,71 +179,151 @@ const hexagramDict = {
   '010101': { name: '火水未济', desc: '君子以慎辨物居方。' }
 };
 
-        // 智能解卦规则库
-        const interpretationRules = {
-            movingYao: {
-                0: '无动爻，事态稳定，保持现状即可。',
-                1: '单爻动，关键因素变化，需重点关注对应领域。',
-                2: '双爻动，事态复杂，需平衡多方关系。',
-                3: '多爻动，变动剧烈，建议暂缓重大决策。'
-            },
-            elementAnalysis: {
-                '111111': '纯阳之卦，主动创造，属金。',
-                '000000': '纯阴之卦，主静承载，属土。',
-                // 其他卦象五行属性...
-            }
+// 五行生克关系
+const ELEMENT_RELATIONS = {
+    '金': { generate: '水', restrict: '木' },
+    '木': { generate: '火', restrict: '土' },
+    '水': { generate: '木', restrict: '火' },
+    '火': { generate: '土', restrict: '金' },
+    '土': { generate: '金', restrict: '水' }
+};
+
+class HexagramSystem {
+    constructor() {
+        this.current = null;
+    }
+
+    // 生成卦象（含变爻）
+    generate() {
+        let hexKey = '';
+        const changes = [];
+        
+        for(let i=0; i<6; i++) {
+            const rand = Math.floor(Math.random() * 6); // 模拟铜钱概率
+            const state = this.getYaoState(rand);
+            hexKey += state.value;
+            if(state.changing) changes.push(i);
+        }
+        
+        this.current = {
+            original: this.getHexData(hexKey),
+            changingLines: changes,
+            changed: this.getChangedHex(hexKey, changes)
         };
+    }
 
-        // 生成卦象逻辑（保持原有代码）
-        // ...
+    getYaoState(num) {
+        // 0-3对应：少阴(0)、少阳(1)、老阴(2)、老阳(3)
+        return {
+            0: {value:0, changing:false},
+            1: {value:1, changing:false},
+            2: {value:0, changing:true}, // 老阴变阳
+            3: {value:1, changing:true}, // 老阳变阴
+            4: {value:0, changing:false},
+            5: {value:1, changing:false}
+        }[num];
+    }
 
-        // 新增智能解卦功能
-        function generateInterpretation(originalHex, changedHex, movingCount) {
-            let advice = [];
-            // 基础判断
-            advice.push(`📜 卦象解读：${hexagramDict[originalHex].advice.overall}`);
-            advice.push(`⚖️ 五行属性：${interpretationRules.elementAnalysis[originalHex] || '需结合具体卦象分析'}`);
+    getHexData(key) {
+        return HEXAGRAM_DB[key] || {name: '未知卦', element: '', advice: {}};
+    }
+
+    getChangedHex(originalKey, changes) {
+        if(changes.length === 0) return null;
+        const arr = originalKey.split('');
+        changes.forEach(pos => {
+            arr[pos] = arr[pos] === '1' ? '0' : '1';
+        });
+        return this.getHexData(arr.join(''));
+    }
+
+    // 生成解卦报告
+    generateReport(type = 'overall') {
+        const { original, changed, changingLines } = this.current;
+        const elementAnalysis = this.analyzeElements(original, changed);
+        
+        return `
+            <h3>${original.name} ${this.getElementTag(original.element)}</h3>
+            ${this.renderHexagram(original, changingLines)}
+            ${changed ? `<p class="changed">变卦：${changed.name}</p>` : ''}
             
-            // 动爻数量判断
-            const movingAdvice = interpretationRules.movingYao[Math.min(movingCount, 3)];
-            advice.push(`🌀 动爻提示：${movingAdvice}`);
+            <div class="tabs">
+                ${['overall', 'career', 'love', 'health'].map(t => `
+                    <div class="tab ${t === type ? 'active' : ''}" 
+                         onclick="hexSystem.showTab('${t}')">${this.getTabName(t)}</div>
+                `).join('')}
+            </div>
+            
+            <div class="interpretation">
+                ${this.getAdviceContent(original, type)}
+                ${elementAnalysis}
+                ${this.getChangingTips(changingLines)}
+            </div>
+        `;
+    }
 
-            // 变卦特殊提示
-            if (changedHex && changedHex !== originalHex) {
-                advice.push(`🌅 变卦启示：${hexagramDict[changedHex].advice.overall}`);
-            }
+    getElementTag(element) {
+        const colors = {金:'#ffd700',木:'#228b22',水:'#1e90ff',火:'#ff4500',土:'#cd853f'};
+        return `<span class="element-tag" style="background:${colors[element]}">${element}行</span>`;
+    }
 
-            // 生成分类建议
-            const categoryHtml = `
-                <div class="interpretation">
-                    <div class="tab active" onclick="switchTab('overall')">整体运势</div>
-                    <div class="tab" onclick="switchTab('career')">事业决策</div>
-                    <div class="tab" onclick="switchTab('love')">感情婚姻</div>
-                    <div class="tab" onclick="switchTab('health')">健康养生</div>
-                    
-                    <div id="adviceContent">
-                        <ul class="advice-list">
-                            ${advice.map(item => `<li>${item}</li>`).join('')}
-                            ${generateCategoryAdvice(originalHex, 'overall')}
-                        </ul>
-                    </div>
-                </div>
-            `;
-            return categoryHtml;
-        }
+    renderHexagram(hex, changes) {
+        return hex.name.split('').reverse().map((_, i) => {
+            const yao = hex.key[5-i]; // 从下到上显示
+            return `<div class="yao-line ${changes.includes(5-i) ? 'changing-yao' : ''}">
+                ${yao === '1' ? '▅▅▅▅▅' : '▅▅　▅▅'}
+            </div>`;
+        }).join('');
+    }
 
-        // 分类建议生成
-        function generateCategoryAdvice(hexKey, category) {
-            const details = hexagramDict[hexKey].advice[category];
-            return `<li><strong>${category}建议：</strong>${details}</li>`;
-        }
+    analyzeElements(original, changed) {
+        if(!changed) return '';
+        const oElem = original.element;
+        const cElem = changed.element;
+        const relation = ELEMENT_RELATIONS[oElem];
+        
+        let analysis = '';
+        if(relation.generate === cElem) analysis = '🟢 五行相生（吉）';
+        else if(relation.restrict === cElem) analysis = '🔴 五行相克（凶）';
+        else analysis = '🟡 五行平和（中）';
+        
+        return `<div class="element-analysis">${analysis}</div>`;
+    }
 
-        // Tab切换功能
-        window.switchTab = function(category) {
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('adviceContent').innerHTML = `
-                <ul class="advice-list">
-                    ${generateCategoryAdvice(currentHex, category)}
-                </ul>
-   
+    getChangingTips(changes) {
+        if(changes.length === 0) return '';
+        return `<div class="changing-tips">
+            <h4>动爻解析：</h4>
+            <ul>${changes.map(pos => `
+                <li>第${pos+1}爻（${this.current.original.relations[pos]}）：
+                ${this.current.original.changingTips?.[pos] || '无特别提示'}</li>
+            `).join('')}</ul>
+        </div>`;
+    }
+
+    getAdviceContent(hex, type) {
+        return `<div class="advice-content">
+            <h4>${this.getTabName(type)}建议：</h4>
+            <p>${hex.advice[type] || '暂无专项建议'}</p>
+        </div>`;
+    }
+
+    getTabName(type) {
+        return {overall:'整体', career:'事业', love:'感情', health:'健康'}[type];
+    }
+
+    showTab(type) {
+        document.getElementById('result').innerHTML = this.generateReport(type);
+    }
+}
+
+// 初始化系统
+const hexSystem = new HexagramSystem();
+
+function generateHexagram() {
+    hexSystem.generate();
+    hexSystem.showTab('overall');
+}
+</script>
+</body>
+</html>
