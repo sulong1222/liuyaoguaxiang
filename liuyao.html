@@ -3,98 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>六爻智能解卦系统</title>
+    <title>在线六爻卦象生成器</title>
     <style>
-        :root {
-            --primary-color: #8b4513;
-            --secondary-color: #d4af37;
-            --bg-color: #f0e6d3;
-        }
         body {
-            font-family: '楷体', cursive;
-            background: var(--bg-color);
-            color: var(--primary-color);
-            max-width: 800px;
-            margin: 0 auto;
+            font-family: "Microsoft YaHei", sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 15px;
+            background: #f5f2e9;
+        }
+        .gua-box {
+            background: white;
+            border-radius: 10px;
             padding: 20px;
-        }
-        .container {
-            background: rgba(255,255,255,0.9);
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        button {
-            background: var(--primary-color);
-            color: white;
-            padding: 1rem 2rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            transition: transform 0.2s;
-        }
-        button:hover {
-            transform: scale(1.05);
-        }
-        .hexagram-box {
-            margin: 2rem 0;
-            padding: 1.5rem;
-            background: rgba(139,69,19,0.1);
-            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .yao-line {
-            font-size: 1.8rem;
-            line-height: 1.5;
-            margin: 0.5rem 0;
+            text-align: center;
+            margin: 8px 0;
+            font-size: 24px;
         }
-        .changing-yao {
-            color: #b22222;
-            position: relative;
-        }
-        .changing-yao::after {
-            content: "✦";
-            position: absolute;
-            right: -1.2rem;
-            color: #ffd700;
-        }
-        .tabs {
-            display: flex;
-            gap: 1rem;
-            margin: 1.5rem 0;
-        }
-        .tab {
-            padding: 0.8rem 1.5rem;
-            border-radius: 6px;
-            cursor: pointer;
-            background: var(--secondary-color);
+        .yin { color: #666; }
+        .yang { color: #c00; }
+        button {
+            background: #4CAF50;
             color: white;
-            transition: all 0.3s;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 15px 0;
+            cursor: pointer;
         }
-        .tab.active {
-            background: var(--primary-color);
-        }
-        .interpretation {
-            line-height: 1.8;
-        }
-        .element-tag {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 15px;
-            font-size: 0.9rem;
-            margin-left: 1rem;
+        .result {
+            margin-top: 20px;
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🀄 六爻智能解卦系统</h1>
-        <button onclick="generateHexagram()">🙏 诚心摇卦</button>
-        <div id="result"></div>
+    <div class="gua-box">
+        <h2 style="text-align: center; color: #333;">六爻卦象生成器</h2>
+        <div id="guaContainer"></div>
+        <div style="text-align: center;">
+            <button onclick="generateHexagram()">点击起卦</button>
+        </div>
+        <div class="result" id="guaInfo"></div>
     </div>
 
 <script>
-// 完整六十四卦数据库
+// 八卦基础数据
+const trigrams = {
+    '111': { name: '乾', symbol: '☰', nature: '天' },
+    '000': { name: '坤', symbol: '☷', nature: '地' },
+    '100': { name: '震', symbol: '☳', nature: '雷' },
+    '001': { name: '艮', symbol: '☶', nature: '山' },
+    '011': { name: '巽', symbol: '☴', nature: '风' },
+    '110': { name: '兑', symbol: '☱', nature: '泽' },
+    '101': { name: '离', symbol: '☲', nature: '火' },
+    '010': { name: '坎', symbol: '☵', nature: '水' }
+};
+
+// 64卦数据（示例部分）
 const hexagramDict = {
   // 上经三十卦
   '111111': { name: '乾为天', desc: '元亨利贞。', yao: [
@@ -179,151 +149,47 @@ const hexagramDict = {
   '010101': { name: '火水未济', desc: '君子以慎辨物居方。' }
 };
 
-// 五行生克关系
-const ELEMENT_RELATIONS = {
-    '金': { generate: '水', restrict: '木' },
-    '木': { generate: '火', restrict: '土' },
-    '水': { generate: '木', restrict: '火' },
-    '火': { generate: '土', restrict: '金' },
-    '土': { generate: '金', restrict: '水' }
-};
-
-class HexagramSystem {
-    constructor() {
-        this.current = null;
-    }
-
-    // 生成卦象（含变爻）
-    generate() {
-        let hexKey = '';
-        const changes = [];
-        
-        for(let i=0; i<6; i++) {
-            const rand = Math.floor(Math.random() * 6); // 模拟铜钱概率
-            const state = this.getYaoState(rand);
-            hexKey += state.value;
-            if(state.changing) changes.push(i);
-        }
-        
-        this.current = {
-            original: this.getHexData(hexKey),
-            changingLines: changes,
-            changed: this.getChangedHex(hexKey, changes)
-        };
-    }
-
-    getYaoState(num) {
-        // 0-3对应：少阴(0)、少阳(1)、老阴(2)、老阳(3)
-        return {
-            0: {value:0, changing:false},
-            1: {value:1, changing:false},
-            2: {value:0, changing:true}, // 老阴变阳
-            3: {value:1, changing:true}, // 老阳变阴
-            4: {value:0, changing:false},
-            5: {value:1, changing:false}
-        }[num];
-    }
-
-    getHexData(key) {
-        return HEXAGRAM_DB[key] || {name: '未知卦', element: '', advice: {}};
-    }
-
-    getChangedHex(originalKey, changes) {
-        if(changes.length === 0) return null;
-        const arr = originalKey.split('');
-        changes.forEach(pos => {
-            arr[pos] = arr[pos] === '1' ? '0' : '1';
-        });
-        return this.getHexData(arr.join(''));
-    }
-
-    // 生成解卦报告
-    generateReport(type = 'overall') {
-        const { original, changed, changingLines } = this.current;
-        const elementAnalysis = this.analyzeElements(original, changed);
-        
-        return `
-            <h3>${original.name} ${this.getElementTag(original.element)}</h3>
-            ${this.renderHexagram(original, changingLines)}
-            ${changed ? `<p class="changed">变卦：${changed.name}</p>` : ''}
-            
-            <div class="tabs">
-                ${['overall', 'career', 'love', 'health'].map(t => `
-                    <div class="tab ${t === type ? 'active' : ''}" 
-                         onclick="hexSystem.showTab('${t}')">${this.getTabName(t)}</div>
-                `).join('')}
-            </div>
-            
-            <div class="interpretation">
-                ${this.getAdviceContent(original, type)}
-                ${elementAnalysis}
-                ${this.getChangingTips(changingLines)}
-            </div>
-        `;
-    }
-
-    getElementTag(element) {
-        const colors = {金:'#ffd700',木:'#228b22',水:'#1e90ff',火:'#ff4500',土:'#cd853f'};
-        return `<span class="element-tag" style="background:${colors[element]}">${element}行</span>`;
-    }
-
-    renderHexagram(hex, changes) {
-        return hex.name.split('').reverse().map((_, i) => {
-            const yao = hex.key[5-i]; // 从下到上显示
-            return `<div class="yao-line ${changes.includes(5-i) ? 'changing-yao' : ''}">
-                ${yao === '1' ? '▅▅▅▅▅' : '▅▅　▅▅'}
-            </div>`;
-        }).join('');
-    }
-
-    analyzeElements(original, changed) {
-        if(!changed) return '';
-        const oElem = original.element;
-        const cElem = changed.element;
-        const relation = ELEMENT_RELATIONS[oElem];
-        
-        let analysis = '';
-        if(relation.generate === cElem) analysis = '🟢 五行相生（吉）';
-        else if(relation.restrict === cElem) analysis = '🔴 五行相克（凶）';
-        else analysis = '🟡 五行平和（中）';
-        
-        return `<div class="element-analysis">${analysis}</div>`;
-    }
-
-    getChangingTips(changes) {
-        if(changes.length === 0) return '';
-        return `<div class="changing-tips">
-            <h4>动爻解析：</h4>
-            <ul>${changes.map(pos => `
-                <li>第${pos+1}爻（${this.current.original.relations[pos]}）：
-                ${this.current.original.changingTips?.[pos] || '无特别提示'}</li>
-            `).join('')}</ul>
-        </div>`;
-    }
-
-    getAdviceContent(hex, type) {
-        return `<div class="advice-content">
-            <h4>${this.getTabName(type)}建议：</h4>
-            <p>${hex.advice[type] || '暂无专项建议'}</p>
-        </div>`;
-    }
-
-    getTabName(type) {
-        return {overall:'整体', career:'事业', love:'感情', health:'健康'}[type];
-    }
-
-    showTab(type) {
-        document.getElementById('result').innerHTML = this.generateReport(type);
-    }
+// 生成单爻
+function generateYao() {
+    return Math.random() > 0.5 ? 1 : 0;
 }
 
-// 初始化系统
-const hexSystem = new HexagramSystem();
-
+// 生成六爻卦
 function generateHexagram() {
-    hexSystem.generate();
-    hexSystem.showTab('overall');
+    const hexagram = Array.from({length:6}, generateYao);
+    displayHexagram(hexagram);
+    showGuaInfo(hexagram);
 }
+
+// 显示卦象
+function displayHexagram(hexagram) {
+    const container = document.getElementById('guaContainer');
+    container.innerHTML = hexagram
+        .reverse() // 传统显示顺序（从上爻开始）
+        .map(yao => `<div class="yao-line ${yao ? 'yang' : 'yin'}">${yao ? '———' : '— —'}</div>`)
+        .join('');
+}
+
+// 显示卦象信息
+function showGuaInfo(hexagram) {
+    const lower = hexagram.slice(0,3).join('');
+    const upper = hexagram.slice(3).join('');
+    
+    const lowerTrigram = trigrams[lower] || {name:'未知', symbol:'', nature:'未知'};
+    const upperTrigram = trigrams[upper] || {name:'未知', symbol:'', nature:'未知'};
+    
+    const fullGua = hexagrams[`${lower}_${upper}`] || '（完整卦名需查询易经）';
+
+    document.getElementById('guaInfo').innerHTML = `
+        <p>下卦（${lowerTrigram.nature}）：${lowerTrigram.name} ${lowerTrigram.symbol}</p>
+        <p>上卦（${upperTrigram.nature}）：${upperTrigram.name} ${upperTrigram.symbol}</p>
+        <p>本卦为：${upperTrigram.nature}${lowerTrigram.nature} ${fullGua}</p>
+        <p style="color:#666; font-size:0.9em;">生成时间：${new Date().toLocaleString()}</p>
+    `;
+}
+
+// 初始化生成一个卦
+generateHexagram();
 </script>
 </body>
 </html>
